@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#15202A">
+<title>수련회 버스 탑승 체크</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='4' width='26' height='20' rx='5' fill='%23F2B705'/%3E%3Crect x='7' y='8' width='18' height='7' rx='2' fill='%2315202A'/%3E%3Ccircle cx='10' cy='26' r='3' fill='%2315202A'/%3E%3Ccircle cx='22' cy='26' r='3' fill='%2315202A'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-column roll-call clipboard — sticky boarding counter on top, tappable passenger rows below, grouped by family. */
+:root{
+  --bg:#F1F4F6; --surface:#FFFFFF; --ink:#15202A; --muted:#5E6D79; --line:#DCE3E8;
+  --accent:#F2B705; --accent-ink:#1C1500;
+  --ok:#1C8853; --ok-bg:#E2F3E9; --warn:#A85A07; --warn-bg:#FFF0D9; --off:#8C96A1; --off-bg:#ECEFF2;
+  --sign:"Do Hyeon","IBM Plex Sans KR",system-ui,sans-serif;
+  --body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D141A; --surface:#15202A; --ink:#E6ECF1; --muted:#93A3B0; --line:#25333F;
+  --accent:#F5C02E; --accent-ink:#1C1500;
+  --ok:#3CC487; --ok-bg:#11301F; --warn:#F0A64E; --warn-bg:#33240F; --off:#7D8996; --off-bg:#1C2833; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D141A; --surface:#15202A; --ink:#E6ECF1; --muted:#93A3B0; --line:#25333F;
+  --accent:#F5C02E; --accent-ink:#1C1500;
+  --ok:#3CC487; --ok-bg:#11301F; --warn:#F0A64E; --warn-bg:#33240F; --off:#7D8996; --off-bg:#1C2833; color-scheme:dark}
+*{box-sizing:border-box} [hidden]{display:none!important}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;-webkit-text-size-adjust:100%}
+.lock{position:fixed;inset:0;z-index:40;overflow-y:auto;background:var(--bg);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+.lock form{width:100%;max-width:340px;display:grid;gap:12px;text-align:center}
+.lock h2{margin:0;font-family:var(--sign);font-weight:400;font-size:28px}
+.lock p{margin:0;color:var(--muted);font-size:14px}
+.lock input{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:13px;font-size:20px;text-align:center;letter-spacing:.2em}
+.lock .err{color:#C2352B;font-size:13.5px}
+.lock .file{border:2px dashed var(--line);border-radius:12px;padding:18px 12px;background:var(--surface);cursor:pointer;color:var(--muted);font-size:14px}
+.lock .file b{display:block;color:var(--ink);font-size:16px;margin-bottom:2px}
+.lock input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.preview{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13.5px;display:grid;gap:4px}
+.preview .big{font-family:var(--sign);font-size:22px}
+.preview .warn{color:var(--warn)}
+.relink{display:block;margin:28px auto 0;border:0;background:none;color:var(--muted);font-size:13px;text-decoration:underline;text-underline-offset:3px}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+header .wrap{padding-block:12px 12px;display:grid;gap:10px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.eyebrow{font-size:12px;color:var(--muted);letter-spacing:.02em}
+h1{margin:0;font-family:var(--sign);font-weight:400;font-size:22px;line-height:1.1;text-wrap:balance}
+.sync{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--off)}
+.sync.live i{background:var(--ok)} .sync.local i{background:var(--accent)}
+
+.trips{display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border-radius:10px;padding:3px;gap:3px}
+.trips button{border:0;background:transparent;border-radius:8px;padding:7px 6px;display:grid;line-height:1.2;text-align:center}
+.trips button b{font-weight:600;font-size:15px}
+.trips button span{font-size:11.5px;color:var(--muted)}
+.trips button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+.board{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.count{font-family:var(--sign);font-size:44px;line-height:.9;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.count small{font-size:24px;color:var(--muted)}
+.stats{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted);padding-bottom:3px}
+.stats b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.stats .w b{color:var(--warn)}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;display:flex}
+.bar .on{background:var(--ok)} .bar .ab{background:var(--off)}
+.done{font-family:var(--sign);font-size:18px;color:var(--ok)}
+
+.tools{padding-block:12px 4px;display:grid;gap:10px}
+.search{position:relative}
+.search input{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:11px 12px 11px 38px;font-size:16px}
+.search svg{position:absolute;left:12px;top:50%;translate:0 -50%;color:var(--muted)}
+.row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:13px;font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.sortsel{font-size:13px;color:var(--muted);display:flex;gap:4px;align-items:center}
+.sortsel button{border:0;background:none;padding:4px 6px;border-radius:6px;color:var(--muted)}
+.sortsel button[aria-pressed="true"]{color:var(--ink);font-weight:600;background:var(--surface)}
+
+main .wrap{padding-block:6px 120px}
+.group{margin-top:14px}
+.ghead{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:0 2px 6px;font-size:13px;color:var(--muted)}
+.ghead b{color:var(--ink);font-weight:600}
+.ghead button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:3px 9px;font-size:12.5px;color:var(--ink)}
+ul{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+li.p{display:flex;align-items:center;gap:12px;padding:11px 12px;border-top:1px solid var(--line);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s}
+li.p:first-child{border-top:0}
+li.p.on{background:var(--ok-bg)}
+li.p.ab{background:var(--off-bg)}
+li.p.ab .nm{color:var(--off);text-decoration:line-through}
+.chk{flex:none;width:40px;height:40px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:grid;place-items:center;color:transparent;padding:0}
+li.p.on .chk{background:var(--ok);border-color:var(--ok);color:#fff}
+li.p.ab .chk{border-style:dashed}
+.who{flex:1;min-width:0;display:grid;gap:2px}
+.nm{font-weight:600;font-size:16.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.num{font-size:11.5px;color:var(--muted);font-weight:400;font-variant-numeric:tabular-nums}
+.tag{font-size:11px;font-weight:500;border-radius:4px;padding:1px 5px;background:var(--bg);color:var(--muted)}
+.tag.kid{background:var(--warn-bg);color:var(--warn)}
+.meta{font-size:12.5px;color:var(--muted);display:flex;gap:4px 10px;flex-wrap:wrap;align-items:center}
+.ph{border:0;background:none;padding:0;color:var(--muted);text-decoration:underline dotted;text-underline-offset:3px;font-variant-numeric:tabular-nums}
+.note{font-size:12.5px;color:var(--muted)}
+.note.warn{color:var(--warn)}
+.side{flex:none;display:grid;justify-items:end;gap:4px}
+.time{font-size:12px;color:var(--ok);font-variant-numeric:tabular-nums;font-weight:500}
+.abs{border:1px solid var(--line);background:transparent;border-radius:6px;font-size:12px;padding:3px 8px;color:var(--muted)}
+li.p.ab .abs{background:var(--off);color:var(--surface);border-color:var(--off)}
+.empty{padding:28px 12px;text-align:center;color:var(--muted)}
+.btns{display:flex;gap:4px}
+.rm{border:0;background:transparent;font-size:12px;padding:3px 4px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.removed{margin-top:22px}
+.removed summary{cursor:pointer;font-size:13px;color:var(--muted);padding:6px 2px;list-style-position:inside}
+.removed summary b{color:var(--ink);font-weight:600}
+.removed ul{margin-top:6px}
+.removed li{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
+.removed li:first-child{border-top:0}
+.removed .who .nm{font-size:15px;color:var(--muted);text-decoration:line-through}
+.removed .why{font-size:12.5px;color:var(--muted)}
+.chkline{display:flex!important;flex-direction:row;align-items:center;gap:8px;font-size:14px!important;color:var(--ink)!important}
+.chkline input{width:20px;height:20px;padding:0}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.dock .wrap{padding-block:10px;display:flex;gap:8px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;font-weight:500;font-size:14px;white-space:nowrap}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);flex:1}
+.btn.ghost{color:var(--muted)}
+.btn.danger{background:#C2352B;border-color:#C2352B;color:#fff}
+
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(8,14,20,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet .card{background:var(--surface);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:12px}
+.sheet h2{margin:0;font-family:var(--sign);font-weight:400;font-size:21px}
+.sheet p{margin:0;color:var(--muted);font-size:14px}
+.sheet label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.sheet input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px;font-size:16px;color:var(--ink)}
+.sheet .acts{display:flex;gap:8px;justify-content:flex-end}
+.sheet textarea{width:100%;min-height:150px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px;font:inherit;font-size:14px;color:var(--ink)}
+
+.toast{position:fixed;left:50%;translate:-50% 0;bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--surface);padding:8px 14px;border-radius:999px;font-size:13.5px;max-width:calc(100% - 32px)}
+.ro{font-size:12.5px;background:var(--warn-bg);color:var(--warn);padding:6px 10px;border-radius:8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="lock" id="lock" hidden>
+  <form id="lockForm">
+    <h2>버스 탑승 체크</h2>
+    <p>2026 인천금곡교회 전교인 수련회<br>담당자에게 받은 입장 코드를 입력하세요.</p>
+    <input id="code" type="password" inputmode="numeric" autocomplete="off" aria-label="입장 코드" required>
+    <div class="err" id="lockErr" hidden>입장 코드가 맞지 않습니다.</div>
+    <button class="btn pri">입장</button>
+  </form>
+</div>
+
+<div class="lock" id="setup" hidden>
+  <form id="setupForm">
+    <h2>명단 불러오기</h2>
+    <p>버스 탑승자 명단 엑셀 파일(.xlsx)을 선택하세요.<br>'버스'가 들어간 시트에서 순번·이름·연락처·구분·참석일·숙박·가족대표·비고 칸을 읽습니다.</p>
+    <label class="file" for="xfile"><b>엑셀 파일 선택</b><span id="xfileName">아직 선택하지 않았습니다</span></label>
+    <input id="xfile" type="file" accept=".xlsx,.xls,.csv">
+    <div class="preview" id="preview" hidden></div>
+    <div class="err" id="setupErr" hidden></div>
+    <button class="btn pri" id="setupSave" disabled>이 명단으로 시작</button>
+    <button type="button" class="btn ghost" id="setupCancel" hidden>취소</button>
+  </form>
+</div>
+
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <div class="eyebrow">2026 인천금곡교회 전교인 수련회 · 10월 15일 명단 기준</div>
+        <h1>버스 탑승 체크</h1>
+      </div>
+      <span class="sync" id="sync"><i></i><span>연결 중…</span></span>
+    </div>
+    <div class="trips" id="trips"></div>
+    <div class="board">
+      <div class="count" id="count">0<small> / 0</small></div>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="bar" id="bar"><div class="on"></div><div class="ab"></div></div>
+    <div class="ro" id="ro" hidden>보기 전용입니다. 체크하려면 이 페이지의 편집 또는 참여(Contributor) 권한이 필요합니다.</div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="tools">
+      <div class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="이름 또는 초성 (예: ㄱㅇㅈ), 전화 끝자리" autocomplete="off">
+      </div>
+      <div class="row2">
+        <div class="chips" id="chips"></div>
+        <div class="sortsel" id="sort">
+          <button data-s="family" aria-pressed="true">가족별</button>
+          <button data-s="name" aria-pressed="false">가나다</button>
+        </div>
+      </div>
+    </div>
+    <div id="list"></div>
+    <div id="removed"></div>
+    <button class="relink" id="relink" type="button">명단 엑셀 파일 다시 불러오기</button>
+  </div>
+</main>
+
+<div class="sheet" id="rmSheet" hidden>
+  <form class="card" id="rmForm">
+    <h2>명단에서 빼기</h2>
+    <p id="rmMsg"></p>
+    <label class="chkline" id="rmBothWrap"><input type="checkbox" id="rmBoth" checked> <span id="rmBothTxt"></span></label>
+    <label>이유 (선택)<input id="rmWhy" maxlength="40" placeholder="예: 중복, 자가용 이동, 불참 확정"></label>
+    <div class="acts"><button type="button" class="btn" data-close>취소</button><button class="btn danger">명단에서 빼기</button></div>
+  </form>
+</div>
+
+<div class="dock">
+  <div class="wrap">
+    <button class="btn pri" id="copyMissing">미탑승자 명단 복사</button>
+    <button class="btn" id="addBtn">+ 명단 외 추가</button>
+    <button class="btn ghost" id="resetBtn">초기화</button>
+  </div>
+</div>
+
+<div class="sheet" id="addSheet" hidden>
+  <form class="card" id="addForm">
+    <h2>명단 외 탑승자 추가</h2>
+    <p id="addTrip"></p>
+    <label>이름<input id="xName" required maxlength="20"></label>
+    <label>연락처 (선택)<input id="xPhone" inputmode="tel" maxlength="20"></label>
+    <label>메모 (선택)<input id="xNote" maxlength="60"></label>
+    <div class="acts"><button type="button" class="btn" data-close>취소</button><button class="btn pri" style="flex:none">탑승으로 추가</button></div>
+  </form>
+</div>
+
+<div class="sheet" id="resetSheet" hidden>
+  <div class="card">
+    <h2>체크 초기화</h2>
+    <p id="resetMsg"></p>
+    <div class="acts"><button class="btn" data-close>취소</button><button class="btn danger" id="resetGo">초기화</button></div>
+  </div>
+</div>
+
+<div class="sheet" id="copySheet" hidden>
+  <div class="card">
+    <h2>미탑승자 명단</h2>
+    <p>복사가 안 되면 아래 글을 길게 눌러 직접 복사하세요.</p>
+    <textarea id="copyText" readonly></textarea>
+    <div class="acts"><button class="btn" data-close>닫기</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+let ROSTER = [];
+const TRIPS = [
+  {id:"go",   label:"가는 버스", sub:"1일차 출발 · 전원"},
+  {id:"back", label:"오는 버스", sub:"2일차 귀가 · 숙박자"}
+];
+const LSKEY = "busCheck.v1";
+const S = { trip:"go", filter:"all", sort:"family", q:"", checks:new Map(), extras:new Map(), removed:new Map(), mode:"pending", canWrite:true };
+
+try{ const p = JSON.parse(localStorage.getItem(LSKEY+".ui")||"{}"); if(p.trip) S.trip=p.trip; if(p.sort) S.sort=p.sort; }catch(e){}
+function saveUi(){ try{ localStorage.setItem(LSKEY+".ui", JSON.stringify({trip:S.trip, sort:S.sort})); }catch(e){} }
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+const chosung = s => [...s].map(ch => { const c = ch.charCodeAt(0)-0xAC00; return (c>=0 && c<11172) ? CHO[Math.floor(c/588)] : ch; }).join("");
+const fmtTime = iso => { try{ return new Date(iso).toLocaleTimeString("ko-KR",{hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } };
+
+function people(trip){
+  const base = (trip==="go" ? ROSTER : ROSTER.filter(p => p.stay==="숙박"));
+  const ex = [...S.extras.values()].filter(x => x.trip===trip).sort((a,b)=>(a.at||"").localeCompare(b.at||""))
+    .map(x => ({k:"x"+x.id, xid:x.id, n:null, name:x.name, ph:x.phone||"", grp:"", rep:"명단 외 추가", note:x.note||"", extra:true}));
+  return base.filter(p => !S.removed.has(cid(trip,p.k))).concat(ex);
+}
+const inTrip = (trip,p) => trip==="go" || p.stay==="숙박";
+const cid = (trip,k) => trip+"__"+k;
+const statusOf = (trip,k) => S.checks.get(cid(trip,k))?.status || null;
+
+/* ---------- storage ---------- */
+function loadLocal(){
+  try{
+    const d = JSON.parse(localStorage.getItem(LSKEY)||"{}");
+    S.checks = new Map(Object.entries(d.checks||{})); S.extras = new Map(Object.entries(d.extras||{})); S.removed = new Map(Object.entries(d.removed||{}));
+  }catch(e){}
+}
+function saveLocal(){
+  try{ localStorage.setItem(LSKEY, JSON.stringify({checks:Object.fromEntries(S.checks), extras:Object.fromEntries(S.extras), removed:Object.fromEntries(S.removed)})); }catch(e){}
+}
+const inflight = new Map();
+function writeDoc(path, body){
+  const prev = inflight.get(path) || Promise.resolve();
+  lastWriteSeq = pollSeq + 1;
+  const p = prev.catch(()=>{}).then(async () => {
+    const r = await fetch("/api/action", {method:"POST", headers:{"content-type":"application/json","x-access-code":CODE}, body:JSON.stringify({path, body})});
+    if(!r.ok) throw {code:r.status};
+  });
+  inflight.set(path, p);
+  p.finally(() => { if(inflight.get(path)===p) inflight.delete(path); lastWriteSeq = pollSeq + 1; });
+  return p.catch(e => {
+    if(e && e.code===401){ toast("입장 코드가 바뀌었습니다"); showLock(true); }
+    else toast("저장 실패: 인터넷 연결을 확인하고 다시 눌러 주세요");
+    throw e;
+  });
+}
+async function setStatus(trip,k,status){
+  if(!S.canWrite){ toast("보기 전용입니다"); return; }
+  const id = cid(trip,k);
+  if(status){ S.checks.set(id,{trip,k,status,at:new Date().toISOString()}); } else S.checks.delete(id);
+  render();
+  if(S.mode==="live"){ try{ await writeDoc("checks/"+id, status ? S.checks.get(id) : null); }catch(e){} }
+  else saveLocal();
+}
+async function addExtra(trip,name,phone,note){
+  const id = Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const body = {id,trip,name,phone,note,at:new Date().toISOString()};
+  S.extras.set(id, body);
+  if(S.mode==="live"){ try{ await writeDoc("extras/"+id, body); }catch(e){ return; } }
+  else saveLocal();
+  await setStatus(trip,"x"+id,"on");
+}
+async function removePerson(k, trips, why){
+  if(!S.canWrite){ toast("보기 전용입니다"); return; }
+  const at = new Date().toISOString();
+  trips.forEach(t => S.removed.set(cid(t,k), {trip:t,k,why,at}));
+  render();
+  if(S.mode==="live"){ for(const t of trips){ try{ await writeDoc("removed/"+cid(t,k), S.removed.get(cid(t,k))); }catch(e){} } }
+  else saveLocal();
+}
+async function restorePerson(id){
+  if(!S.canWrite){ toast("보기 전용입니다"); return; }
+  S.removed.delete(id); render();
+  if(S.mode==="live"){ try{ await writeDoc("removed/"+id, null); }catch(e){} }
+  else saveLocal();
+}
+async function removeExtra(id){
+  const x = S.extras.get(id); if(!x) return;
+  S.extras.delete(id); S.checks.delete(cid(x.trip,"x"+id)); render();
+  if(S.mode==="live"){ try{ await writeDoc("checks/"+cid(x.trip,"x"+id), null); await writeDoc("extras/"+id, null); }catch(e){} }
+  else saveLocal();
+}
+
+/* ---------- render ---------- */
+function renderHeader(){
+  $("#trips").innerHTML = TRIPS.map(t => `<button data-t="${t.id}" aria-pressed="${t.id===S.trip}"><b>${t.label}</b><span>${t.sub}</span></button>`).join("");
+  const list = people(S.trip);
+  let on=0, ab=0; list.forEach(p => { const s=statusOf(S.trip,p.k); if(s==="on") on++; else if(s==="absent") ab++; });
+  const total = list.length, wait = total-on-ab;
+  $("#count").innerHTML = `${on}<small> / ${total}</small>`;
+  $("#stats").innerHTML = wait===0 && total>0
+    ? `<span class="done">전원 확인 완료</span><span>탑승 <b>${on}</b></span><span>불참 <b>${ab}</b></span>`
+    : `<span>탑승</span><span class="w">미탑승 <b>${wait}</b></span><span>불참 <b>${ab}</b></span>`;
+  $("#bar .on").style.width = (total? on/total*100:0)+"%";
+  $("#bar .ab").style.width = (total? ab/total*100:0)+"%";
+  $("#chips").innerHTML = [["all","전체",total],["wait","미탑승",wait],["on","탑승",on],["absent","불참",ab]]
+    .map(([v,l,c]) => `<button class="chip" data-f="${v}" aria-pressed="${S.filter===v}">${l} ${c}</button>`).join("");
+  document.querySelectorAll("#sort button").forEach(b => b.setAttribute("aria-pressed", b.dataset.s===S.sort));
+  const sy = $("#sync");
+  const temp = S.mode==="live" && storeKind==="memory";
+  sy.className = "sync " + (S.mode==="live" && !temp ? "live" : S.mode==="live" ? "local" : "");
+  sy.querySelector("span").textContent = temp ? "임시 저장 · 저장소 미연결" : S.mode==="live" ? "실시간 공유 중" : S.mode==="offline" ? "연결 끊김 · 다시 연결 중" : "불러오는 중…";
+  $("#ro").hidden = S.canWrite;
+}
+function rowHtml(p){
+  const s = statusOf(S.trip,p.k), c = S.checks.get(cid(S.trip,p.k));
+  const kid = p.grp==="교육부" || p.grp==="어린이";
+  return `<li class="p ${s==="on"?"on":s==="absent"?"ab":""}" data-k="${p.k}">
+    <button class="chk" data-act="toggle" aria-label="${esc(p.name)} 탑승 체크" aria-pressed="${s==="on"}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
+    <div class="who">
+      <div class="nm">${p.n?`<span class="num">${p.n}</span>`:""}${esc(p.name)}${p.grp?`<span class="tag ${kid?"kid":""}">${esc(p.grp)}</span>`:""}${p.extra?`<span class="tag kid">추가</span>`:""}</div>
+      <div class="meta">${p.ph?`<button class="ph" data-act="copy" data-v="${esc(p.ph)}">${esc(p.ph)}</button>`:"연락처 없음"}${S.sort==="name"&&!p.extra?`<span>가족 ${esc(p.rep)}</span>`:""}</div>
+      ${p.note?`<div class="note ${p.warn?"warn":""}">${esc(p.note)}</div>`:""}
+    </div>
+    <div class="side">
+      ${s==="on"&&c?.at?`<span class="time">${fmtTime(c.at)}</span>`:""}
+      ${p.extra?`<button class="abs" data-act="del" data-x="${p.xid}">삭제</button>`:`<div class="btns"><button class="rm" data-act="rm">빼기</button><button class="abs" data-act="absent">불참</button></div>`}
+    </div></li>`;
+}
+function matches(p){
+  const s = statusOf(S.trip,p.k);
+  if(S.filter==="wait" && s) return false;
+  if(S.filter==="on" && s!=="on") return false;
+  if(S.filter==="absent" && s!=="absent") return false;
+  const q = S.q.replace(/\s|-/g,"");
+  if(!q) return true;
+  if(/^\d+$/.test(q)) return p.ph.replace(/-/g,"").includes(q) || String(p.n)===q;
+  return p.name.includes(q) || chosung(p.name).includes(q) || p.rep.includes(q);
+}
+function renderList(){
+  const list = people(S.trip).filter(matches);
+  if(!list.length){ $("#list").innerHTML = `<div class="empty">${S.filter==="wait"&&!S.q?"미탑승자가 없습니다. 전원 확인 완료!":"해당하는 사람이 없습니다."}</div>`; return; }
+  if(S.sort==="name"){
+    const sorted = [...list].sort((a,b)=>a.name.localeCompare(b.name,"ko"));
+    $("#list").innerHTML = `<div class="group"><ul>${sorted.map(rowHtml).join("")}</ul></div>`; return;
+  }
+  const groups = new Map();
+  list.forEach(p => { const g = p.rep; if(!groups.has(g)) groups.set(g,[]); groups.get(g).push(p); });
+  const all = people(S.trip);
+  $("#list").innerHTML = [...groups].map(([g,ps]) => {
+    const fam = all.filter(p => p.rep===g), onN = fam.filter(p => statusOf(S.trip,p.k)==="on").length;
+    const waiting = fam.filter(p => !statusOf(S.trip,p.k)).length;
+    const label = g==="유초등부"||g==="명단 외 추가" ? g : `${g} 가족`;
+    return `<section class="group"><div class="ghead"><span><b>${esc(label)}</b> · ${onN}/${fam.length} 탑승</span>${fam.length>1&&waiting>0?`<button data-act="fam" data-g="${esc(g)}">${waiting}명 모두 탑승</button>`:""}</div><ul>${ps.map(rowHtml).join("")}</ul></section>`;
+  }).join("");
+}
+function renderRemoved(){
+  const rows = [...S.removed.entries()].filter(([id,r]) => r.trip===S.trip)
+    .map(([id,r]) => ({id, r, p: ROSTER.find(p => p.k===r.k)})).filter(x => x.p)
+    .sort((a,b) => (b.r.at||"").localeCompare(a.r.at||""));
+  const el = $("#removed");
+  if(!rows.length){ el.innerHTML=""; return; }
+  const open = el.querySelector("details")?.open;
+  el.innerHTML = `<details class="removed" ${open?"open":""}><summary>명단에서 뺀 사람 <b>${rows.length}명</b> · 인원 계산에서 제외됨</summary><ul>${rows.map(({id,r,p}) =>
+    `<li><div class="who"><div class="nm">${p.n?`<span class="num">${p.n}</span>`:""}${esc(p.name)}</div><div class="why">${r.why?esc(r.why)+" · ":""}${fmtTime(r.at)}에 뺌</div></div><button class="abs" data-restore="${esc(id)}">되돌리기</button></li>`).join("")}</ul></details>`;
+}
+function render(){ renderHeader(); renderList(); renderRemoved(); }
+
+let tt; function toast(m){ const t=$("#toast"); t.textContent=m; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,1800); }
+async function copy(text){ try{ await navigator.clipboard.writeText(text); return true; }catch(e){ return false; } }
+
+/* ---------- events ---------- */
+$("#trips").addEventListener("click", e => { const b=e.target.closest("button"); if(!b) return; S.trip=b.dataset.t; S.filter="all"; saveUi(); render(); });
+$("#chips").addEventListener("click", e => { const b=e.target.closest("button"); if(!b) return; S.filter=b.dataset.f; render(); });
+$("#sort").addEventListener("click", e => { const b=e.target.closest("button"); if(!b) return; S.sort=b.dataset.s; saveUi(); render(); });
+$("#q").addEventListener("input", e => { S.q=e.target.value.trim(); renderList(); });
+$("#list").addEventListener("click", async e => {
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  if(act==="fam"){
+    const g = e.target.closest("[data-act]").dataset.g;
+    for(const p of people(S.trip).filter(p => p.rep===g && !statusOf(S.trip,p.k))) await setStatus(S.trip,p.k,"on");
+    return;
+  }
+  const li = e.target.closest("li.p"); if(!li) return;
+  const k = li.dataset.k, s = statusOf(S.trip,k);
+  if(act==="copy"){ const v=e.target.closest("[data-act]").dataset.v; toast(await copy(v) ? `${v} 복사됨` : v); return; }
+  if(act==="absent"){ setStatus(S.trip,k, s==="absent"?null:"absent"); return; }
+  if(act==="rm"){
+    if(!S.canWrite){ toast("보기 전용입니다"); return; }
+    const p = ROSTER.find(x => x.k===k), other = S.trip==="go" ? "back" : "go";
+    const both = inTrip(other,p) && !S.removed.has(cid(other,k));
+    rmTarget = k;
+    $("#rmMsg").textContent = `${p.name} 님을 ${tripLabel()} 명단에서 뺍니다. 인원 계산과 미탑승 명단에서도 빠지며, 아래 '명단에서 뺀 사람'에서 되돌릴 수 있습니다.`;
+    $("#rmBothWrap").hidden = !both; $("#rmBoth").checked = true;
+    $("#rmBothTxt").textContent = `${TRIPS.find(t=>t.id===other).label} 명단에서도 빼기`;
+    $("#rmWhy").value = ""; $("#rmSheet").hidden = false;
+    return;
+  }
+  if(act==="del"){
+    const b=e.target.closest("[data-act]");
+    if(b.dataset.armed){ removeExtra(b.dataset.x); } else { b.dataset.armed="1"; b.textContent="정말 삭제"; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent="삭제"; } },2500); }
+    return;
+  }
+  setStatus(S.trip,k, s==="on"?null:"on");
+});
+let rmTarget = null;
+$("#rmForm").addEventListener("submit", e => {
+  e.preventDefault(); $("#rmSheet").hidden = true;
+  const k = rmTarget; if(!k) return;
+  const other = S.trip==="go" ? "back" : "go";
+  const trips = [S.trip]; if(!$("#rmBothWrap").hidden && $("#rmBoth").checked) trips.push(other);
+  removePerson(k, trips, $("#rmWhy").value.trim());
+  toast(`${ROSTER.find(p=>p.k===k).name} 님을 명단에서 뺐습니다`);
+});
+$("#removed").addEventListener("click", e => { const b = e.target.closest("[data-restore]"); if(!b) return; restorePerson(b.dataset.restore); toast("명단에 되돌렸습니다"); });
+document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => b.closest(".sheet").hidden=true));
+document.querySelectorAll(".sheet").forEach(sh => sh.addEventListener("click", e => { if(e.target===sh) sh.hidden=true; }));
+const tripLabel = () => TRIPS.find(t=>t.id===S.trip).label;
+$("#addBtn").addEventListener("click", () => { if(!S.canWrite){ toast("보기 전용입니다"); return; } $("#addTrip").textContent = `${tripLabel()}에 탑승으로 추가됩니다.`; $("#addForm").reset(); $("#addSheet").hidden=false; $("#xName").focus(); });
+$("#addForm").addEventListener("submit", e => { e.preventDefault(); const n=$("#xName").value.trim(); if(!n) return; $("#addSheet").hidden=true; addExtra(S.trip,n,$("#xPhone").value.trim(),$("#xNote").value.trim()); toast(`${n} 추가됨`); });
+$("#resetBtn").addEventListener("click", () => { if(!S.canWrite){ toast("보기 전용입니다"); return; } $("#resetMsg").textContent = `${tripLabel()}의 탑승·불참 체크를 모두 지웁니다. 함께 보고 있는 모든 사람의 화면에서도 지워집니다.`; $("#resetSheet").hidden=false; });
+$("#resetGo").addEventListener("click", async () => {
+  $("#resetSheet").hidden=true;
+  const ids = [...S.checks.keys()].filter(id => id.startsWith(S.trip+"__"));
+  ids.forEach(id => S.checks.delete(id)); render();
+  if(S.mode==="live"){ for(const id of ids){ try{ await writeDoc("checks/"+id,null); }catch(e){} } } else saveLocal();
+  toast("초기화했습니다");
+});
+$("#copyMissing").addEventListener("click", async () => {
+  const miss = people(S.trip).filter(p => !statusOf(S.trip,p.k));
+  if(!miss.length){ toast("미탑승자가 없습니다"); return; }
+  const text = `[${tripLabel()}] 미탑승 ${miss.length}명\n` + miss.map(p => `${p.name}${p.ph?" "+p.ph:""}`).join("\n");
+  if(await copy(text)) toast(`미탑승 ${miss.length}명 복사됨`);
+  else { $("#copyText").value=text; $("#copySheet").hidden=false; }
+});
+
+/* ---------- boot: server sync ---------- */
+let CODE = ""; try{ CODE = localStorage.getItem(LSKEY+".code") || ""; }catch(e){}
+let pollSeq = 0, lastWriteSeq = 0, pollTimer = null, storeKind = "";
+const toMap = o => new Map(Object.entries(o||{}));
+
+async function fetchState(){
+  const seq = ++pollSeq;
+  const r = await fetch("/api/state", {headers:{"x-access-code":CODE}, cache:"no-store"});
+  if(r.status===401) return "locked";
+  if(!r.ok) throw new Error("http "+r.status);
+  const d = await r.json();
+  // a write that started after this poll began wins over the poll result
+  if(seq <= lastWriteSeq || inflight.size) return "skip";
+  ROSTER = d.roster || []; storeKind = d.store;
+  S.checks = toMap(d.checks); S.extras = toMap(d.extras); S.removed = toMap(d.removed);
+  S.mode = "live"; render();
+  if(!ROSTER.length && $("#setup").hidden) showSetup(false);
+  return "ok";
+}
+async function poll(){
+  clearTimeout(pollTimer);
+  if(document.visibilityState==="visible"){
+    try{ const s = await fetchState(); if(s==="locked"){ showLock(true); return; } }
+    catch(e){ S.mode="offline"; renderHeader(); }
+  }
+  pollTimer = setTimeout(poll, 3000);
+}
+document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible" && $("#lock").hidden) poll(); });
+
+function showLock(bad){
+  $("#lock").hidden = false; $("#lockErr").hidden = !bad || !CODE; $("#code").value = ""; $("#code").focus();
+}
+$("#lockForm").addEventListener("submit", async e => {
+  e.preventDefault(); CODE = $("#code").value.trim();
+  try{ localStorage.setItem(LSKEY+".code", CODE); }catch(err){}
+  const s = await fetchState().catch(()=> "err");
+  if(s==="locked"){ showLock(true); return; }
+  $("#lock").hidden = true; poll();
+});
+
+/* ---------- roster upload ---------- */
+let pending = null;
+function loadXLSX(){
+  if(window.XLSX) return Promise.resolve();
+  return new Promise((ok,no) => { const s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; s.onload=ok; s.onerror=()=>no(new Error("엑셀 읽기 도구를 불러오지 못했습니다. 인터넷 연결을 확인하세요.")); document.head.appendChild(s); });
+}
+function showSetup(cancelable){
+  pending = null; $("#xfile").value=""; $("#xfileName").textContent="아직 선택하지 않았습니다";
+  $("#preview").hidden=true; $("#setupErr").hidden=true; $("#setupSave").disabled=true;
+  $("#setupCancel").hidden=!cancelable; $("#setup").hidden=false;
+  loadXLSX().catch(()=>{});
+}
+const cell = v => String(v ?? "").trim();
+function parseWorkbook(wb){
+  const sheet = wb.SheetNames.find(n => n.includes("버스")) || wb.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheet], {header:1, defval:"", raw:false});
+  const h = rows.slice(0,20).findIndex(r => r.some(c => cell(c)==="이름"));
+  if(h<0) throw new Error(`'${sheet}' 시트에서 '이름' 칸을 찾지 못했습니다.`);
+  const head = rows[h].map(cell), col = key => head.findIndex(x => x.includes(key));
+  const C = {n:col("순번"), name:head.indexOf("이름"), ph:col("연락처"), grp:col("구분"), days:col("참석일"), stay:col("숙박"), rep:col("가족"), note:col("비고")};
+  const get = (r,i) => i<0 ? "" : cell(r[i]);
+  const out = [], used = new Set();
+  rows.slice(h+1).forEach((r,idx) => {
+    const name = get(r,C.name); if(!name) return;
+    let n = parseInt(get(r,C.n),10);
+    if(!(n>0) || used.has(n)){ n = Math.max(0,...used, idx+1); while(used.has(n)) n++; }
+    used.add(n);
+    out.push({n, name, ph:get(r,C.ph), grp:get(r,C.grp), days:get(r,C.days), stay: C.stay<0 ? "숙박" : get(r,C.stay), rep:get(r,C.rep)||name, note:get(r,C.note), warn:false});
+  });
+  if(!out.length) throw new Error("명단에 사람이 없습니다.");
+  // 확인이 필요한 줄 표시
+  const carSheet = wb.SheetNames.find(n => n.includes("자가용"));
+  const carNames = new Set();
+  if(carSheet){ const cr = XLSX.utils.sheet_to_json(wb.Sheets[carSheet], {header:1, defval:"", raw:false}); const ch = cr.slice(0,20).findIndex(r => r.some(c => cell(c)==="이름")); if(ch>=0){ const ni = cr[ch].map(cell).indexOf("이름"); cr.slice(ch+1).forEach(r => { const v=cell(r[ni]); if(v) carNames.add(v); }); } }
+  out.forEach(p => {
+    const f = [];
+    if(C.days>=0 && !p.days) f.push("참석일 미기재");
+    const twins = out.filter(q => q!==p && q.name===p.name).map(q => q.n+"번");
+    if(twins.length) f.push(`같은 이름 ${twins.join(", ")}과 중복 의심`);
+    if(carNames.has(p.name)) f.push("자가용 명단에도 있음");
+    if(f.length){ p.warn = true; p.note = [p.note, ...f].filter(Boolean).join(" · "); }
+  });
+  return {sheet, roster:out};
+}
+$("#xfile").addEventListener("change", async e => {
+  const f = e.target.files[0]; if(!f) return;
+  $("#xfileName").textContent = f.name; $("#setupErr").hidden = true; $("#setupSave").disabled = true; $("#preview").hidden = true;
+  try{
+    await loadXLSX();
+    const wb = XLSX.read(await f.arrayBuffer(), {type:"array"});
+    pending = parseWorkbook(wb);
+    const r = pending.roster, stay = r.filter(p => p.stay==="숙박").length, warn = r.filter(p => p.warn);
+    $("#preview").innerHTML = `<div>'${esc(pending.sheet)}' 시트</div><div class="big">${r.length}명 · 숙박 ${stay}명</div>
+      <div>${esc(r.slice(0,6).map(p=>p.name).join(", "))}${r.length>6?" …":""}</div>
+      ${warn.length?`<div class="warn">확인 필요 ${warn.length}명: ${esc(warn.map(p=>p.n+"번 "+p.name).join(", "))}</div>`:""}`;
+    $("#preview").hidden = false; $("#setupSave").disabled = false;
+  }catch(err){ pending=null; $("#setupErr").textContent = err.message || "파일을 읽지 못했습니다."; $("#setupErr").hidden = false; }
+});
+$("#setupForm").addEventListener("submit", async e => {
+  e.preventDefault(); if(!pending) return;
+  $("#setupSave").disabled = true;
+  try{
+    const r = await fetch("/api/roster", {method:"POST", headers:{"content-type":"application/json","x-access-code":CODE}, body:JSON.stringify({roster:pending.roster})});
+    if(r.status===401){ $("#setup").hidden=true; showLock(true); return; }
+    if(!r.ok) throw new Error();
+    $("#setup").hidden = true; toast(`명단 ${pending.roster.length}명을 불러왔습니다`); await fetchState();
+  }catch(err){ $("#setupErr").textContent="저장하지 못했습니다. 다시 눌러 주세요."; $("#setupErr").hidden=false; $("#setupSave").disabled=false; }
+});
+$("#setupCancel").addEventListener("click", () => { $("#setup").hidden = true; });
+$("#relink").addEventListener("click", () => showSetup(true));
+
+render();
+poll();
+</script>
+</body>
+</html>
