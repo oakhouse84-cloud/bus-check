@@ -15,18 +15,18 @@
 :root{
   --bg:#F1F4F6; --surface:#FFFFFF; --ink:#15202A; --muted:#5E6D79; --line:#DCE3E8;
   --accent:#F2B705; --accent-ink:#1C1500;
-  --ok:#1C8853; --ok-bg:#E2F3E9; --warn:#A85A07; --warn-bg:#FFF0D9; --off:#8C96A1; --off-bg:#ECEFF2;
+  --ok:#1C8853; --ok-bg:#E2F3E9; --warn:#A85A07; --warn-bg:#FFF0D9; --off:#8C96A1; --off-bg:#ECEFF2; --b1:#2563C9; --b1-bg:#E3ECFB; --b2:#B23A86; --b2-bg:#F8E4F0;
   --sign:"Do Hyeon","IBM Plex Sans KR",system-ui,sans-serif;
   --body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0D141A; --surface:#15202A; --ink:#E6ECF1; --muted:#93A3B0; --line:#25333F;
   --accent:#F5C02E; --accent-ink:#1C1500;
-  --ok:#3CC487; --ok-bg:#11301F; --warn:#F0A64E; --warn-bg:#33240F; --off:#7D8996; --off-bg:#1C2833; color-scheme:dark}}
+  --ok:#3CC487; --ok-bg:#11301F; --warn:#F0A64E; --warn-bg:#33240F; --off:#7D8996; --off-bg:#1C2833; --b1:#7AA7F5; --b1-bg:#16264A; --b2:#E58AC3; --b2-bg:#3A1830; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0D141A; --surface:#15202A; --ink:#E6ECF1; --muted:#93A3B0; --line:#25333F;
   --accent:#F5C02E; --accent-ink:#1C1500;
-  --ok:#3CC487; --ok-bg:#11301F; --warn:#F0A64E; --warn-bg:#33240F; --off:#7D8996; --off-bg:#1C2833; color-scheme:dark}
+  --ok:#3CC487; --ok-bg:#11301F; --warn:#F0A64E; --warn-bg:#33240F; --off:#7D8996; --off-bg:#1C2833; --b1:#7AA7F5; --b1-bg:#16264A; --b2:#E58AC3; --b2-bg:#3A1830; color-scheme:dark}
 *{box-sizing:border-box} [hidden]{display:none!important}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;-webkit-text-size-adjust:100%}
@@ -66,6 +66,16 @@ h1{margin:0;font-family:var(--sign);font-weight:400;font-size:22px;line-height:1
 .trips button span{font-size:11.5px;color:var(--muted)}
 .trips button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 
+.buses{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.buses button{border:1.5px solid var(--line);background:var(--surface);border-radius:9px;padding:7px 4px;font-weight:600;font-size:14.5px;line-height:1.15;display:grid}
+.buses button span{font-size:11.5px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
+.buses button[data-b="1"][aria-pressed="true"]{border-color:var(--b1);background:var(--b1-bg);color:var(--b1)}
+.buses button[data-b="2"][aria-pressed="true"]{border-color:var(--b2);background:var(--b2-bg);color:var(--b2)}
+.buses button[data-b="0"][aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--surface)}
+.buses button[aria-pressed="true"] span{color:inherit;opacity:.85}
+.bustag{font-size:11.5px;font-weight:600;border-radius:4px;padding:1px 6px}
+.bustag.b1{background:var(--b1-bg);color:var(--b1)} .bustag.b2{background:var(--b2-bg);color:var(--b2)}
+.count .lbl{font-family:var(--body);font-size:13px;color:var(--muted);letter-spacing:0;display:block;margin-bottom:4px}
 .board{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
 .count{font-family:var(--sign);font-size:44px;line-height:.9;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .count small{font-size:24px;color:var(--muted)}
@@ -186,6 +196,7 @@ li.p.ab .abs{background:var(--off);color:var(--surface);border-color:var(--off)}
       <span class="sync" id="sync"><i></i><span>연결 중…</span></span>
     </div>
     <div class="trips" id="trips"></div>
+    <div class="buses" id="buses"></div>
     <div class="board">
       <div class="count" id="count">0<small> / 0</small></div>
       <div class="stats" id="stats"></div>
@@ -271,10 +282,10 @@ const TRIPS = [
   {id:"back", label:"오는 버스", sub:"2일차 귀가 · 숙박자"}
 ];
 const LSKEY = "busCheck.v1";
-const S = { trip:"go", filter:"all", sort:"family", q:"", checks:new Map(), extras:new Map(), removed:new Map(), mode:"pending", canWrite:true };
+const S = { bus:0, trip:"go", filter:"all", sort:"family", q:"", checks:new Map(), extras:new Map(), removed:new Map(), mode:"pending", canWrite:true };
 
-try{ const p = JSON.parse(localStorage.getItem(LSKEY+".ui")||"{}"); if(p.trip) S.trip=p.trip; if(p.sort) S.sort=p.sort; }catch(e){}
-function saveUi(){ try{ localStorage.setItem(LSKEY+".ui", JSON.stringify({trip:S.trip, sort:S.sort})); }catch(e){} }
+try{ const p = JSON.parse(localStorage.getItem(LSKEY+".ui")||"{}"); if(p.trip) S.trip=p.trip; if(p.sort) S.sort=p.sort; if(p.bus===1||p.bus===2) S.bus=p.bus; }catch(e){}
+function saveUi(){ try{ localStorage.setItem(LSKEY+".ui", JSON.stringify({trip:S.trip, sort:S.sort, bus:S.bus})); }catch(e){} }
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -291,6 +302,7 @@ function people(trip){
 const inTrip = (trip,p) => trip==="go" || p.stay==="숙박";
 const cid = (trip,k) => trip+"__"+k;
 const statusOf = (trip,k) => S.checks.get(cid(trip,k))?.status || null;
+const busOf = (trip,k) => { const c = S.checks.get(cid(trip,k)); return c && c.status==="on" ? (c.bus||0) : 0; };
 
 /* ---------- storage ---------- */
 function loadLocal(){
@@ -318,10 +330,14 @@ function writeDoc(path, body){
     throw e;
   });
 }
-async function setStatus(trip,k,status){
+async function setStatus(trip,k,status,bus){
   if(!S.canWrite){ toast("보기 전용입니다"); return; }
   const id = cid(trip,k);
-  if(status){ S.checks.set(id,{trip,k,status,at:new Date().toISOString()}); } else S.checks.delete(id);
+  if(status){
+    const body = {trip,k,status,at:new Date().toISOString()};
+    if(status==="on"){ const b = bus ?? (S.bus || busOf(trip,k)); if(b) body.bus = b; }
+    S.checks.set(id, body);
+  } else S.checks.delete(id);
   render();
   if(S.mode==="live"){ try{ await writeDoc("checks/"+id, status ? S.checks.get(id) : null); }catch(e){} }
   else saveLocal();
@@ -359,15 +375,27 @@ async function removeExtra(id){
 function renderHeader(){
   $("#trips").innerHTML = TRIPS.map(t => `<button data-t="${t.id}" aria-pressed="${t.id===S.trip}"><b>${t.label}</b><span>${t.sub}</span></button>`).join("");
   const list = people(S.trip);
-  let on=0, ab=0; list.forEach(p => { const s=statusOf(S.trip,p.k); if(s==="on") on++; else if(s==="absent") ab++; });
+  let on=0, ab=0; const nb=[0,0,0];
+  list.forEach(p => { const s=statusOf(S.trip,p.k); if(s==="on"){ on++; nb[busOf(S.trip,p.k)]++; } else if(s==="absent") ab++; });
   const total = list.length, wait = total-on-ab;
-  $("#count").innerHTML = `${on}<small> / ${total}</small>`;
-  $("#stats").innerHTML = wait===0 && total>0
-    ? `<span class="done">전원 확인 완료</span><span>탑승 <b>${on}</b></span><span>불참 <b>${ab}</b></span>`
-    : `<span>탑승</span><span class="w">미탑승 <b>${wait}</b></span><span>불참 <b>${ab}</b></span>`;
+  $("#buses").innerHTML = [[0,"전체",`${on}/${total}`],[1,"1호차",`${nb[1]}명`],[2,"2호차",`${nb[2]}명`]]
+    .map(([b,l,c]) => `<button data-b="${b}" aria-pressed="${S.bus===b}">${l}<span>${c} 탑승</span></button>`).join("");
+  const busLine = `<span>1호차 <b>${nb[1]}</b></span><span>2호차 <b>${nb[2]}</b></span>${nb[0]?`<span>호차 미지정 <b>${nb[0]}</b></span>`:""}`;
+  if(S.bus){
+    $("#count").innerHTML = `<span class="lbl">${S.bus}호차 탑승</span>${nb[S.bus]}<small> 명</small>`;
+    $("#stats").innerHTML = wait===0 && total>0
+      ? `<span class="done">전원 확인 완료</span><span>전체 탑승 <b>${on}/${total}</b></span>`
+      : `<span>전체 탑승 <b>${on}/${total}</b></span><span class="w">미탑승 <b>${wait}</b></span><span>불참 <b>${ab}</b></span>`;
+  } else {
+    $("#count").innerHTML = `${on}<small> / ${total}</small>`;
+    $("#stats").innerHTML = wait===0 && total>0
+      ? `<span class="done">전원 확인 완료</span>${busLine}<span>불참 <b>${ab}</b></span>`
+      : `<span class="w">미탑승 <b>${wait}</b></span>${busLine}<span>불참 <b>${ab}</b></span>`;
+  }
   $("#bar .on").style.width = (total? on/total*100:0)+"%";
   $("#bar .ab").style.width = (total? ab/total*100:0)+"%";
-  $("#chips").innerHTML = [["all","전체",total],["wait","미탑승",wait],["on","탑승",on],["absent","불참",ab]]
+  const shown = S.bus ? total - (on - nb[S.bus]) : total, onHere = S.bus ? nb[S.bus] : on;
+  $("#chips").innerHTML = [["all","전체",shown],["wait","미탑승",wait],["on",S.bus?`${S.bus}호차 탑승`:"탑승",onHere],["absent","불참",ab]]
     .map(([v,l,c]) => `<button class="chip" data-f="${v}" aria-pressed="${S.filter===v}">${l} ${c}</button>`).join("");
   document.querySelectorAll("#sort button").forEach(b => b.setAttribute("aria-pressed", b.dataset.s===S.sort));
   const sy = $("#sync");
@@ -387,12 +415,13 @@ function rowHtml(p){
       ${p.note?`<div class="note ${p.warn?"warn":""}">${esc(p.note)}</div>`:""}
     </div>
     <div class="side">
-      ${s==="on"&&c?.at?`<span class="time">${fmtTime(c.at)}</span>`:""}
+      ${s==="on"&&c?.at?`<span class="time">${c.bus?`<span class="bustag b${c.bus}">${c.bus}호차</span> `:""}${fmtTime(c.at)}</span>`:""}
       ${p.extra?`<button class="abs" data-act="del" data-x="${p.xid}">삭제</button>`:`<div class="btns"><button class="rm" data-act="rm">빼기</button><button class="abs" data-act="absent">불참</button></div>`}
     </div></li>`;
 }
 function matches(p){
   const s = statusOf(S.trip,p.k);
+  if(S.bus && s==="on" && busOf(S.trip,p.k) && busOf(S.trip,p.k)!==S.bus) return false; // 다른 호차에 탄 사람은 숨김
   if(S.filter==="wait" && s) return false;
   if(S.filter==="on" && s!=="on") return false;
   if(S.filter==="absent" && s!=="absent") return false;
@@ -435,6 +464,7 @@ async function copy(text){ try{ await navigator.clipboard.writeText(text); retur
 
 /* ---------- events ---------- */
 $("#trips").addEventListener("click", e => { const b=e.target.closest("button"); if(!b) return; S.trip=b.dataset.t; S.filter="all"; saveUi(); render(); });
+$("#buses").addEventListener("click", e => { const b=e.target.closest("button"); if(!b) return; S.bus=+b.dataset.b; if(S.filter==="on") S.filter="all"; saveUi(); render(); });
 $("#chips").addEventListener("click", e => { const b=e.target.closest("button"); if(!b) return; S.filter=b.dataset.f; render(); });
 $("#sort").addEventListener("click", e => { const b=e.target.closest("button"); if(!b) return; S.sort=b.dataset.s; saveUi(); render(); });
 $("#q").addEventListener("input", e => { S.q=e.target.value.trim(); renderList(); });
@@ -465,6 +495,8 @@ $("#list").addEventListener("click", async e => {
     if(b.dataset.armed){ removeExtra(b.dataset.x); } else { b.dataset.armed="1"; b.textContent="정말 삭제"; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent="삭제"; } },2500); }
     return;
   }
+  const cur = busOf(S.trip,k);
+  if(s==="on" && S.bus && cur!==S.bus){ setStatus(S.trip,k,"on",S.bus); toast(`${S.bus}호차로 옮겼습니다`); return; }
   setStatus(S.trip,k, s==="on"?null:"on");
 });
 let rmTarget = null;
@@ -493,7 +525,8 @@ $("#resetGo").addEventListener("click", async () => {
 $("#copyMissing").addEventListener("click", async () => {
   const miss = people(S.trip).filter(p => !statusOf(S.trip,p.k));
   if(!miss.length){ toast("미탑승자가 없습니다"); return; }
-  const text = `[${tripLabel()}] 미탑승 ${miss.length}명\n` + miss.map(p => `${p.name}${p.ph?" "+p.ph:""}`).join("\n");
+  const all = people(S.trip), nb=[0,0,0]; all.forEach(p => { if(statusOf(S.trip,p.k)==="on") nb[busOf(S.trip,p.k)]++; });
+  const text = `[${tripLabel()}] 1호차 ${nb[1]}명 · 2호차 ${nb[2]}명 탑승\n미탑승 ${miss.length}명\n` + miss.map(p => `${p.name}${p.ph?" "+p.ph:""}`).join("\n");
   if(await copy(text)) toast(`미탑승 ${miss.length}명 복사됨`);
   else { $("#copyText").value=text; $("#copySheet").hidden=false; }
 });
