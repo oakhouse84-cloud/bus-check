@@ -3,7 +3,7 @@
 행사 당일 버스 탑승자를 휴대폰으로 체크하는 웹앱입니다.
 같은 주소를 여러 명이 열면 서로의 체크가 3초 안에 반영됩니다.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Foakhouse84-cloud%2Fbus-check&project-name=bus-check&repository-name=bus-check&env=ACCESS_CODE&envDescription=%EC%95%B1%20%EC%9E%85%EC%9E%A5%20%EC%BD%94%EB%93%9C%20%28%EB%8B%B4%EB%8B%B9%EC%9E%90%EB%81%BC%EB%A6%AC%EB%A7%8C%20%EA%B3%B5%EC%9C%A0%29&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22upstash%22%2C%22productSlug%22%3A%22upstash-kv%22%2C%22protocol%22%3A%22storage%22%7D%5D)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Foakhouse84-cloud%2Fbus-check&project-name=bus-check&repository-name=bus-check-app&env=ACCESS_CODE&envDescription=%EC%95%B1%20%EC%9E%85%EC%9E%A5%20%EC%BD%94%EB%93%9C%20%28%EB%8B%B4%EB%8B%B9%EC%9E%90%EB%81%BC%EB%A6%AC%EB%A7%8C%20%EA%B3%B5%EC%9C%A0%29&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22upstash%22%2C%22productSlug%22%3A%22upstash-kv%22%2C%22protocol%22%3A%22storage%22%7D%5D)
 
 - 가는 버스(전원) / 오는 버스(숙박자) 따로 체크
 - 이름·초성·전화 끝자리 검색, 가족 단위 한 번에 체크
