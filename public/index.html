@@ -118,7 +118,11 @@ li.p.ab .chk{border-style:dashed}
 .tag{font-size:11px;font-weight:500;border-radius:4px;padding:1px 5px;background:var(--bg);color:var(--muted)}
 .tag.kid{background:var(--warn-bg);color:var(--warn)}
 .meta{font-size:12.5px;color:var(--muted);display:flex;gap:4px 10px;flex-wrap:wrap;align-items:center}
-.ph{border:0;background:none;padding:0;color:var(--muted);text-decoration:underline dotted;text-underline-offset:3px;font-variant-numeric:tabular-nums}
+.ph{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px 3px 8px;color:var(--ink);text-decoration:none;font-weight:500;font-variant-numeric:tabular-nums}
+.ph svg{color:var(--ok)}
+.ph:active{background:var(--ok-bg)}
+.rtel{color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:999px;padding:2px 9px 2px 7px;font-size:13px}
+.rtel svg{color:var(--ok)}
 .note{font-size:12.5px;color:var(--muted)}
 .note.warn{color:var(--warn)}
 .side{flex:none;display:grid;justify-items:end;gap:4px}
@@ -453,7 +457,7 @@ function rowHtml(p){
     <button class="chk" data-act="toggle" aria-label="${esc(p.name)} 탑승 체크" aria-pressed="${s==="on"}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
     <div class="who">
       <div class="nm">${p.n?`<span class="num">${p.n}</span>`:""}${esc(p.name)}${p.grp?`<span class="tag ${kid?"kid":""}">${esc(p.grp)}</span>`:""}${p.extra?`<span class="tag kid">추가</span>`:""}</div>
-      <div class="meta">${p.ph?`<button class="ph" data-act="copy" data-v="${esc(p.ph)}">${esc(p.ph)}</button>`:"연락처 없음"}${S.sort==="name"&&!p.extra?`<span>가족 ${esc(p.rep)}</span>`:""}</div>
+      <div class="meta">${p.ph?`<a class="ph" data-act="call" href="tel:${esc(p.ph.replace(/[^0-9+]/g,""))}" aria-label="${esc(p.name)}에게 전화"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>${esc(p.ph)}</a>`:"연락처 없음"}${S.sort==="name"&&!p.extra?`<span>가족 ${esc(p.rep)}</span>`:""}</div>
       ${p.note?`<div class="note ${p.warn?"warn":""}">${esc(p.note)}</div>`:""}
     </div>
     <div class="side">
@@ -519,6 +523,7 @@ $("#list").addEventListener("click", async e => {
   }
   const li = e.target.closest("li.p"); if(!li) return;
   const k = li.dataset.k, s = statusOf(S.trip,k);
+  if(act==="call") return; // 전화 걸기: 체크 상태는 바꾸지 않음
   if(act==="copy"){ const v=e.target.closest("[data-act]").dataset.v; toast(await copy(v) ? `${v} 복사됨` : v); return; }
   if(act==="absent"){ setStatus(S.trip,k, s==="absent"?null:"absent"); return; }
   if(act==="rm"){
@@ -730,7 +735,7 @@ function renderReport(){
     ${R.b0.length ? sec("w","호차 미지정 · 분류해 주세요",R.b0.length,`<div class="rlist">${R.b0.map(p => `<div class="rrow"><span>${p.n?`<small>${p.n}</small> `:""}${esc(p.name)}</span><span class="pick"><button data-assign="${p.k}" data-b="1">1호차</button><button data-assign="${p.k}" data-b="2">2호차</button></span></div>`).join("")}</div>`) : ""}
     ${sec("b1","1호차 탑승",R.b1.length,`<div class="rlist">${nameChips(R.b1)}</div>`)}
     ${sec("b2","2호차 탑승",R.b2.length,`<div class="rlist">${nameChips(R.b2)}</div>`)}
-    ${sec("w","미탑승",R.wait.length,`<div class="rlist">${R.wait.length?R.wait.map(p => `<div class="rrow"><span>${p.n?`<small>${p.n}</small> `:""}${esc(p.name)}</span><small>${esc(p.ph||"연락처 없음")}</small></div>`).join(""):`<div class="rempty">없음</div>`}</div>`)}
+    ${sec("w","미탑승",R.wait.length,`<div class="rlist">${R.wait.length?R.wait.map(p => `<div class="rrow"><span>${p.n?`<small>${p.n}</small> `:""}${esc(p.name)}</span>${p.ph?`<a class="rtel" href="tel:${esc(p.ph.replace(/[^0-9+]/g,""))}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>${esc(p.ph)}</a>`:`<small>연락처 없음</small>`}</div>`).join(""):`<div class="rempty">없음</div>`}</div>`)}
     ${sec("","불참",R.absent.length,`<div class="rlist">${nameChips(R.absent)}</div>`)}
     ${sec("","명단 외 추가",R.extras.length,`<div class="rlist">${R.extras.length?R.extras.map(p => `<div class="rrow"><span>${esc(p.name)}</span><small>${esc([p.ph,p.note].filter(Boolean).join(" · ")||"")}</small></div>`).join(""):`<div class="rempty">없음</div>`}</div>`)}
     ${sec("","명단에서 뺀 사람",R.removed.length,`<div class="rlist">${R.removed.length?R.removed.map(({r,p}) => `<div class="rrow"><span><small>${p.n}</small> ${esc(p.name)}</span><small>${esc(r.why||"이유 없음")}</small></div>`).join(""):`<div class="rempty">없음</div>`}</div>`)}`;
