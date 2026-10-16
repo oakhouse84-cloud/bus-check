@@ -42,6 +42,7 @@ body{margin:0;-webkit-text-size-adjust:100%}
 .preview{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13.5px;display:grid;gap:4px}
 .preview .big{font-family:var(--sign);font-size:22px}
 .preview .warn{color:var(--warn)}
+.codeset{display:grid;gap:6px;text-align:left;font-size:13.5px;color:var(--muted)}
 .relink{display:block;margin:28px auto 0;border:0;background:none;color:var(--muted);font-size:13px;text-decoration:underline;text-underline-offset:3px}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
@@ -168,6 +169,7 @@ li.p.ab .abs{background:var(--off);color:var(--surface);border-color:var(--off)}
     <label class="file" for="xfile"><b>엑셀 파일 선택</b><span id="xfileName">아직 선택하지 않았습니다</span></label>
     <input id="xfile" type="file" accept=".xlsx,.xls,.csv">
     <div class="preview" id="preview" hidden></div>
+    <label class="codeset" id="codeSet" hidden><span>입장 코드 정하기 (4자리 이상, 담당자들과 공유)</span><input id="newCode" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="예: 0418"></label>
     <div class="err" id="setupErr" hidden></div>
     <button class="btn pri" id="setupSave" disabled>이 명단으로 시작</button>
     <button type="button" class="btn ghost" id="setupCancel" hidden>취소</button>
@@ -498,6 +500,7 @@ $("#copyMissing").addEventListener("click", async () => {
 
 /* ---------- boot: server sync ---------- */
 let CODE = ""; try{ CODE = localStorage.getItem(LSKEY+".code") || ""; }catch(e){}
+let NEEDS_CODE = false;
 let pollSeq = 0, lastWriteSeq = 0, pollTimer = null, storeKind = "";
 const toMap = o => new Map(Object.entries(o||{}));
 
@@ -509,7 +512,7 @@ async function fetchState(){
   const d = await r.json();
   // a write that started after this poll began wins over the poll result
   if(seq <= lastWriteSeq || inflight.size) return "skip";
-  ROSTER = d.roster || []; storeKind = d.store;
+  ROSTER = d.roster || []; storeKind = d.store; NEEDS_CODE = !!d.needsCode;
   S.checks = toMap(d.checks); S.extras = toMap(d.extras); S.removed = toMap(d.removed);
   S.mode = "live"; render();
   if(!ROSTER.length && $("#setup").hidden) showSetup(false);
@@ -546,6 +549,7 @@ function showSetup(cancelable){
   pending = null; $("#xfile").value=""; $("#xfileName").textContent="아직 선택하지 않았습니다";
   $("#preview").hidden=true; $("#setupErr").hidden=true; $("#setupSave").disabled=true;
   $("#setupCancel").hidden=!cancelable; $("#setup").hidden=false;
+  $("#codeSet").hidden = !NEEDS_CODE; $("#newCode").value = "";
   loadXLSX().catch(()=>{});
 }
 const cell = v => String(v ?? "").trim();
@@ -596,11 +600,14 @@ $("#xfile").addEventListener("change", async e => {
 });
 $("#setupForm").addEventListener("submit", async e => {
   e.preventDefault(); if(!pending) return;
+  const nc = $("#newCode").value.trim();
+  if(NEEDS_CODE && nc.length < 4){ $("#setupErr").textContent="입장 코드를 4자리 이상 정해 주세요."; $("#setupErr").hidden=false; $("#newCode").focus(); return; }
   $("#setupSave").disabled = true;
   try{
-    const r = await fetch("/api/roster", {method:"POST", headers:{"content-type":"application/json","x-access-code":CODE}, body:JSON.stringify({roster:pending.roster})});
+    const r = await fetch("/api/roster", {method:"POST", headers:{"content-type":"application/json","x-access-code":CODE}, body:JSON.stringify({roster:pending.roster, code: NEEDS_CODE ? nc : undefined})});
     if(r.status===401){ $("#setup").hidden=true; showLock(true); return; }
     if(!r.ok) throw new Error();
+    if(NEEDS_CODE){ CODE = nc; try{ localStorage.setItem(LSKEY+".code", CODE); }catch(err){} }
     $("#setup").hidden = true; toast(`명단 ${pending.roster.length}명을 불러왔습니다`); await fetchState();
   }catch(err){ $("#setupErr").textContent="저장하지 못했습니다. 다시 눌러 주세요."; $("#setupErr").hidden=false; $("#setupSave").disabled=false; }
 });

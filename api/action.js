@@ -5,7 +5,7 @@ const PATH_RE = /^(checks|extras|removed)\/([A-Za-z0-9_\-]{1,80})$/;
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") return send(res, 405, { error: "method" });
-  if (!authorized(req)) return send(res, 401, { error: "locked" });
+  if (!(await authorized(req))) return send(res, 401, { error: "locked" });
 
   let data = req.body;
   if (typeof data === "string") {
