@@ -325,7 +325,7 @@ li.p.ab .abs{background:var(--off);color:var(--surface);border-color:var(--off)}
 let ROSTER = [];
 const TRIPS = [
   {id:"go",   label:"가는 버스", sub:"1일차 출발 · 전원"},
-  {id:"back", label:"오는 버스", sub:"2일차 귀가 · 숙박자"}
+  {id:"back", label:"오는 버스", sub:"2일차 귀가 · 갈 때 탑승자"}
 ];
 const LSKEY = "busCheck.v1";
 const S = { bus:0, trip:"go", filter:"all", sort:"family", q:"", checks:new Map(), extras:new Map(), removed:new Map(), mode:"pending", canWrite:true };
@@ -340,12 +340,22 @@ const chosung = s => [...s].map(ch => { const c = ch.charCodeAt(0)-0xAC00; retur
 const fmtTime = iso => { try{ return new Date(iso).toLocaleTimeString("ko-KR",{hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } };
 
 function people(trip){
-  const base = (trip==="go" ? ROSTER : ROSTER.filter(p => p.stay==="숙박"));
-  const ex = [...S.extras.values()].filter(x => x.trip===trip).sort((a,b)=>(a.at||"").localeCompare(b.at||""))
+  // 오는 버스 = 가는 버스에 실제로 탄 사람 (명단 외로 추가되어 탄 사람 포함)
+  const base = (trip==="go" ? ROSTER : ROSTER.filter(p => statusOf("go",p.k)==="on"));
+  const ex = [...S.extras.values()].filter(x => x.trip===trip || (trip==="back" && x.trip==="go" && statusOf("go","x"+x.id)==="on")).sort((a,b)=>(a.at||"").localeCompare(b.at||""))
     .map(x => ({k:"x"+x.id, xid:x.id, n:null, name:x.name, ph:x.phone||"", grp:"", rep:"명단 외 추가", note:x.note||"", extra:true}));
   return base.filter(p => !S.removed.has(cid(trip,p.k))).concat(ex);
 }
-const inTrip = (trip,p) => trip==="go" || p.stay==="숙박";
+const inTrip = (trip,p) => trip==="go" || statusOf("go",p.k)==="on";
+// 오는 버스에서는 갈 때 탄 호차를 기본 호차로 봄
+const homeBus = (trip,k) => trip==="back" ? busOf("go",k) : 0;
+function busVisible(p){
+  if(!S.bus) return true;
+  const s = statusOf(S.trip,p.k), b = busOf(S.trip,p.k);
+  if(s==="on" && b && b!==S.bus) return false;          // 다른 호차에 탄 사람
+  if(!s){ const h = homeBus(S.trip,p.k); if(h && h!==S.bus) return false; } // 갈 때 다른 호차였던 사람
+  return true;
+}
 const cid = (trip,k) => trip+"__"+k;
 const statusOf = (trip,k) => S.checks.get(cid(trip,k))?.status || null;
 const busOf = (trip,k) => { const c = S.checks.get(cid(trip,k)); return c && c.status==="on" ? (c.bus||0) : 0; };
@@ -381,7 +391,7 @@ async function setStatus(trip,k,status,bus){
   const id = cid(trip,k);
   if(status){
     const body = {trip,k,status,at:new Date().toISOString()};
-    if(status==="on"){ const b = bus ?? (S.bus || busOf(trip,k)); if(b) body.bus = b; }
+    if(status==="on"){ const b = bus ?? (S.bus || busOf(trip,k) || homeBus(trip,k)); if(b) body.bus = b; }
     S.checks.set(id, body);
   } else S.checks.delete(id);
   render();
@@ -440,7 +450,7 @@ function renderHeader(){
   }
   $("#bar .on").style.width = (total? on/total*100:0)+"%";
   $("#bar .ab").style.width = (total? ab/total*100:0)+"%";
-  const shown = S.bus ? total - (on - nb[S.bus]) : total, onHere = S.bus ? nb[S.bus] : on;
+  const shown = S.bus ? list.filter(busVisible).length : total, onHere = S.bus ? nb[S.bus] : on;
   $("#chips").innerHTML = [["all","전체",shown],["wait","미탑승",wait],["on",S.bus?`${S.bus}호차 탑승`:"탑승",onHere],["absent","불참",ab]]
     .map(([v,l,c]) => `<button class="chip" data-f="${v}" aria-pressed="${S.filter===v}">${l} ${c}</button>`).join("");
   document.querySelectorAll("#sort button").forEach(b => b.setAttribute("aria-pressed", b.dataset.s===S.sort));
@@ -456,7 +466,7 @@ function rowHtml(p){
   return `<li class="p ${s==="on"?"on":s==="absent"?"ab":""}" data-k="${p.k}">
     <button class="chk" data-act="toggle" aria-label="${esc(p.name)} 탑승 체크" aria-pressed="${s==="on"}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
     <div class="who">
-      <div class="nm">${p.n?`<span class="num">${p.n}</span>`:""}${esc(p.name)}${p.grp?`<span class="tag ${kid?"kid":""}">${esc(p.grp)}</span>`:""}${p.extra?`<span class="tag kid">추가</span>`:""}</div>
+      <div class="nm">${p.n?`<span class="num">${p.n}</span>`:""}${esc(p.name)}${p.grp?`<span class="tag ${kid?"kid":""}">${esc(p.grp)}</span>`:""}${p.extra?`<span class="tag kid">추가</span>`:""}${S.trip==="back"&&busOf("go",p.k)?`<span class="bustag b${busOf("go",p.k)}" style="opacity:.75">갈 때 ${busOf("go",p.k)}호차</span>`:""}</div>
       <div class="meta">${p.ph?`<a class="ph" data-act="call" href="tel:${esc(p.ph.replace(/[^0-9+]/g,""))}" aria-label="${esc(p.name)}에게 전화"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>${esc(p.ph)}</a>`:"연락처 없음"}${S.sort==="name"&&!p.extra?`<span>가족 ${esc(p.rep)}</span>`:""}</div>
       ${p.note?`<div class="note ${p.warn?"warn":""}">${esc(p.note)}</div>`:""}
     </div>
@@ -467,7 +477,7 @@ function rowHtml(p){
 }
 function matches(p){
   const s = statusOf(S.trip,p.k);
-  if(S.bus && s==="on" && busOf(S.trip,p.k) && busOf(S.trip,p.k)!==S.bus) return false; // 다른 호차에 탄 사람은 숨김
+  if(!busVisible(p)) return false; // 다른 호차 사람은 숨김
   if(S.filter==="wait" && s) return false;
   if(S.filter==="on" && s!=="on") return false;
   if(S.filter==="absent" && s!=="absent") return false;
@@ -478,7 +488,7 @@ function matches(p){
 }
 function renderList(){
   const list = people(S.trip).filter(matches);
-  if(!list.length){ $("#list").innerHTML = `<div class="empty">${S.filter==="wait"&&!S.q?"미탑승자가 없습니다. 전원 확인 완료!":"해당하는 사람이 없습니다."}</div>`; return; }
+  if(!list.length){ $("#list").innerHTML = `<div class="empty">${S.trip==="back"&&!people("back").length?"가는 버스에서 탑승 체크된 사람이 오는 버스 명단이 됩니다.":S.filter==="wait"&&!S.q?"미탑승자가 없습니다. 전원 확인 완료!":"해당하는 사람이 없습니다."}</div>`; return; }
   if(S.sort==="name"){
     const sorted = [...list].sort((a,b)=>a.name.localeCompare(b.name,"ko"));
     $("#list").innerHTML = `<div class="group"><ul>${sorted.map(rowHtml).join("")}</ul></div>`; return;
