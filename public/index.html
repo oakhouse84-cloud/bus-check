@@ -328,7 +328,7 @@ const TRIPS = [
   {id:"back", label:"오는 버스", sub:"2일차 귀가 · 갈 때 탑승자"}
 ];
 const LSKEY = "busCheck.v1";
-const S = { bus:0, trip:"go", filter:"all", sort:"family", q:"", checks:new Map(), extras:new Map(), removed:new Map(), mode:"pending", canWrite:true };
+const S = { bus:0, trip:"go", filter:"all", sort:"family", q:"", checks:new Map(), extras:new Map(), removed:new Map(), log:new Map(), mode:"pending", canWrite:true };
 
 try{ const p = JSON.parse(localStorage.getItem(LSKEY+".ui")||"{}"); if(p.trip) S.trip=p.trip; if(p.sort) S.sort=p.sort; if(p.bus===1||p.bus===2) S.bus=p.bus; }catch(e){}
 function saveUi(){ try{ localStorage.setItem(LSKEY+".ui", JSON.stringify({trip:S.trip, sort:S.sort, bus:S.bus})); }catch(e){} }
@@ -389,11 +389,20 @@ function writeDoc(path, body){
 async function setStatus(trip,k,status,bus){
   if(!S.canWrite){ toast("보기 전용입니다"); return; }
   const id = cid(trip,k);
+  const prev = S.checks.get(id) || null, prevBus = prev && prev.status==="on" ? (prev.bus||0) : 0;
   if(status){
     const body = {trip,k,status,at:new Date().toISOString()};
     if(status==="on"){ const b = bus ?? (S.bus || busOf(trip,k) || homeBus(trip,k)); if(b) body.bus = b; }
     S.checks.set(id, body);
   } else S.checks.delete(id);
+  { const now = S.checks.get(id) || null, nb2 = now && now.status==="on" ? (now.bus||0) : 0, bl = b => b ? b+"호차" : "호차 미지정";
+    let what = "";
+    if(now?.status==="on" && prev?.status==="on"){ if(nb2!==prevBus) what = `${bl(prevBus)} → ${bl(nb2)}로 옮김`; }
+    else if(now?.status==="on") what = `${bl(nb2)} 탑승`;
+    else if(now?.status==="absent") what = "불참 표시";
+    else if(prev?.status==="on") what = `탑승 취소 (${bl(prevBus)})`;
+    else if(prev?.status==="absent") what = "불참 취소";
+    if(what) addLog(trip, k, what); }
   render();
   if(S.mode==="live"){ try{ await writeDoc("checks/"+id, status ? S.checks.get(id) : null); }catch(e){} }
   else saveLocal();
@@ -410,16 +419,33 @@ async function removePerson(k, trips, why){
   if(!S.canWrite){ toast("보기 전용입니다"); return; }
   const at = new Date().toISOString();
   trips.forEach(t => S.removed.set(cid(t,k), {trip:t,k,why,at}));
+  addLog(trips[0], k, `명단에서 뺌${trips.length>1?" (가는·오는 버스 모두)":""}${why?" · "+why:""}`);
   render();
   if(S.mode==="live"){ for(const t of trips){ try{ await writeDoc("removed/"+cid(t,k), S.removed.get(cid(t,k))); }catch(e){} } }
   else saveLocal();
 }
 async function restorePerson(id){
   if(!S.canWrite){ toast("보기 전용입니다"); return; }
-  S.removed.delete(id); render();
-  if(S.mode==="live"){ try{ await writeDoc("removed/"+id, null); }catch(e){} }
+  const r = S.removed.get(id); if(!r) return;
+  // 함께 뺀 다른 버스 쪽도 같이 되돌림
+  const ids = [...S.removed.entries()].filter(([i,x]) => i===id || (x.k===r.k && x.at===r.at)).map(([i]) => i);
+  ids.forEach(i => S.removed.delete(i)); render();
+  addLog(r.trip, r.k, ids.length>1 ? "명단에 되돌림 (가는·오는 버스 모두)" : "명단에 되돌림");
+  if(S.mode==="live"){ for(const i of ids){ try{ await writeDoc("removed/"+i, null); }catch(e){} } }
   else saveLocal();
 }
+/* 변경 기록 */
+function nameOfKey(k){
+  if(k && k[0]==="x"){ const x = S.extras.get(k.slice(1)); return x ? x.name+"(추가)" : "명단 외"; }
+  const p = ROSTER.find(p => p.k===k); return p ? p.name : k;
+}
+function addLog(trip, k, what){
+  const at = new Date().toISOString(), id = Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const body = {trip, k, name:nameOfKey(k), what, at, dev:DEVICE};
+  S.log.set(id, body);
+  if(S.mode==="live") writeDoc("log/"+id, body).catch(()=>{});
+}
+let DEVICE = ""; try{ DEVICE = localStorage.getItem(LSKEY+".dev") || ""; if(!DEVICE){ DEVICE = Math.random().toString(36).slice(2,6); localStorage.setItem(LSKEY+".dev", DEVICE); } }catch(e){ DEVICE = "????"; }
 async function removeExtra(id){
   const x = S.extras.get(id); if(!x) return;
   S.extras.delete(id); S.checks.delete(cid(x.trip,"x"+id)); render();
@@ -477,7 +503,7 @@ function rowHtml(p){
 }
 function matches(p){
   const s = statusOf(S.trip,p.k);
-  if(!busVisible(p)) return false; // 다른 호차 사람은 숨김
+  if(!S.q && !busVisible(p)) return false; // 다른 호차 사람은 숨김 (이름으로 검색하면 보여서 옮길 수 있음)
   if(S.filter==="wait" && s) return false;
   if(S.filter==="on" && s!=="on") return false;
   if(S.filter==="absent" && s!=="absent") return false;
@@ -603,7 +629,7 @@ async function fetchState(){
   // a write that started after this poll began wins over the poll result
   if(seq <= lastWriteSeq || inflight.size) return "skip";
   ROSTER = d.roster || []; storeKind = d.store; NEEDS_CODE = !!d.needsCode;
-  S.checks = toMap(d.checks); S.extras = toMap(d.extras); S.removed = toMap(d.removed);
+  S.checks = toMap(d.checks); S.extras = toMap(d.extras); S.removed = toMap(d.removed); S.log = toMap(d.log);
   S.mode = "live"; render();
   if(!ROSTER.length && $("#setup").hidden) showSetup(false);
   return "ok";
@@ -748,6 +774,8 @@ function renderReport(){
     ${sec("w","미탑승",R.wait.length,`<div class="rlist">${R.wait.length?R.wait.map(p => `<div class="rrow"><span>${p.n?`<small>${p.n}</small> `:""}${esc(p.name)}</span>${p.ph?`<a class="rtel" href="tel:${esc(p.ph.replace(/[^0-9+]/g,""))}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>${esc(p.ph)}</a>`:`<small>연락처 없음</small>`}</div>`).join(""):`<div class="rempty">없음</div>`}</div>`)}
     ${sec("","불참",R.absent.length,`<div class="rlist">${nameChips(R.absent)}</div>`)}
     ${sec("","명단 외 추가",R.extras.length,`<div class="rlist">${R.extras.length?R.extras.map(p => `<div class="rrow"><span>${esc(p.name)}</span><small>${esc([p.ph,p.note].filter(Boolean).join(" · ")||"")}</small></div>`).join(""):`<div class="rempty">없음</div>`}</div>`)}
+    ${(() => { const L = [...S.log.values()].filter(l => l.trip===t).sort((a,b)=>(b.at||"").localeCompare(a.at||"")).slice(0,150);
+      return sec("","변경 기록 (최근순)",L.length,`<div class="rlist">${L.length?L.map(l => `<div class="rrow"><span>${esc(l.name)} · ${esc(l.what)}</span><small>${fmtTime(l.at)}${l.dev?" · 기기 "+esc(l.dev):""}</small></div>`).join(""):`<div class="rempty">아직 기록이 없습니다</div>`}</div>`); })()}
     ${sec("","명단에서 뺀 사람",R.removed.length,`<div class="rlist">${R.removed.length?R.removed.map(({r,p}) => `<div class="rrow"><span><small>${p.n}</small> ${esc(p.name)}</span><small>${esc(r.why||"이유 없음")}</small></div>`).join(""):`<div class="rempty">없음</div>`}</div>`)}`;
 }
 function reportText(t){

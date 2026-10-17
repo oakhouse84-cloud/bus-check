@@ -1,7 +1,7 @@
 const { put } = require("../lib/store");
 const { authorized, send } = require("../lib/http");
 
-const PATH_RE = /^(checks|extras|removed)\/([A-Za-z0-9_\-]{1,80})$/;
+const PATH_RE = /^(checks|extras|removed|log)\/([A-Za-z0-9_\-]{1,80})$/;
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") return send(res, 405, { error: "method" });
